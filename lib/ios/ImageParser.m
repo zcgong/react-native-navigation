@@ -1,6 +1,7 @@
 #import "ImageParser.h"
 #import "NullImage.h"
 #import <React/RCTConvert.h>
+#import <React/RCTImageSource.h>
 
 @implementation ImageParser
 
@@ -21,7 +22,23 @@
             image = [RCTConvert UIImage:data[@"fallback"]];
         }
     } else {
-        image = [RCTConvert UIImage:data];
+        RCTImageSource *imageSource = [RCTConvert RCTImageSource:json[key]];
+        NSURL* URL = imageSource.request.URL;
+        NSString *scheme = URL.scheme.lowercaseString;
+        if ([scheme isEqualToString:@"https"]) {
+            image = [UIImage imageWithData:[NSData dataWithContentsOfURL:URL]];
+            CGFloat scale = imageSource.scale;
+            if (!scale && imageSource.size.width) {
+                // If no scale provided, set scale to image width / source width
+                scale = CGImageGetWidth(image.CGImage) / imageSource.size.width;
+            }
+            
+            if (scale) {
+                image = [UIImage imageWithCGImage:image.CGImage scale:scale orientation:image.imageOrientation];
+            }
+        } else {
+            image = [RCTConvert UIImage:data];
+        }
     }
 
     return [[Image alloc] initWithValue:image];
